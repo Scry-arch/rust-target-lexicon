@@ -26,6 +26,8 @@ std = []
 arch_zkasm = []
 # Enable (unstable) support for the z80 architecture.
 arch_z80 = []
+# Enable (unstable) support for the Scry architecture.
+scry = []
 
 [badges]
 maintenance = { status = "passively-maintained" }

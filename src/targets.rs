@@ -58,6 +58,8 @@ pub enum Architecture {
     ZkAsm,
     #[cfg(feature = "arch_z80")]
     Z80(Z80Architecture),
+    #[cfg(feature = "scry")]
+    Scry,
 }
 
 #[cfg_attr(feature = "rust_1_40", non_exhaustive)]
@@ -589,6 +591,15 @@ impl Z80Architecture {
     }
 }
 
+/// An enum for all Scry architectures.
+#[cfg(feature = "scry")]
+#[cfg_attr(feature = "rust_1_40", non_exhaustive)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
+pub enum ScryArchitecture {
+    Scry,
+}
+
 /// A string for a `Vendor::Custom` that can either be used in `const`
 /// contexts or hold dynamic strings.
 #[derive(Clone, Debug, Eq)]
@@ -1017,6 +1028,8 @@ impl Architecture {
             ZkAsm => Ok(Endianness::Big),
             #[cfg(feature = "arch_z80")]
             Z80(_) => Ok(Endianness::Little),
+            #[cfg(feature = "scry")]
+            Scry => Ok(Endianness::Little),
         }
     }
 
@@ -1067,6 +1080,8 @@ impl Architecture {
             ZkAsm => Ok(PointerWidth::U64),
             #[cfg(feature = "arch_z80")]
             Z80(_) => Ok(PointerWidth::U16),
+            #[cfg(feature = "scry")]
+            Scry => Ok(PointerWidth::U32),
         }
     }
 
@@ -1122,6 +1137,8 @@ impl Architecture {
             ZkAsm => Cow::Borrowed("zkasm"),
             #[cfg(feature = "arch_z80")]
             Z80(z80) => z80.into_str(),
+            #[cfg(feature = "scry")]
+            Scry => Scry.into_str(),
         }
     }
 }
@@ -1400,6 +1417,20 @@ impl FromStr for Z80Architecture {
     }
 }
 
+#[cfg(feature = "scry")]
+impl FromStr for ScryArchitecture {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, ()> {
+        use ScryArchitecture::*;
+
+        Ok(match s {
+            "scry" => Scry,
+            _ => return Err(()),
+        })
+    }
+}
+
 impl FromStr for Architecture {
     type Err = ();
 
@@ -1458,6 +1489,12 @@ impl FromStr for Architecture {
                     {
                         if let Ok(z80) = Z80Architecture::from_str(s) {
                             return Ok(Architecture::Z80(z80));
+                        }
+                    }
+                    #[cfg(feature = "scry")]
+                    {
+                        if let Ok(_n) = ScryArchitecture::from_str(s) {
+                            return Ok(Scry);
                         }
                     }
                     return Err(());
