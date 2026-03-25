@@ -59,7 +59,7 @@ pub enum Architecture {
     #[cfg(feature = "arch_z80")]
     Z80(Z80Architecture),
     #[cfg(feature = "scry")]
-    Scry,
+    Scry(ScryArchitecture),
 }
 
 #[cfg_attr(feature = "rust_1_40", non_exhaustive)]
@@ -596,8 +596,20 @@ impl Z80Architecture {
 #[cfg_attr(feature = "rust_1_40", non_exhaustive)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
-pub enum ScryArchitecture {
-    Scry,
+pub struct ScryArchitecture {
+    /// Size of pointers
+    pub width: PointerWidth,
+}
+
+#[cfg(feature = "scry")]
+impl ScryArchitecture {
+    fn into_str(self) -> Cow<'static, str> {
+        match self.width {
+            PointerWidth::U32 => Cow::Borrowed("scry32"),
+            PointerWidth::U64 => Cow::Borrowed("scry64"),
+            _ => unreachable!(),
+        }
+    }
 }
 
 /// A string for a `Vendor::Custom` that can either be used in `const`
@@ -1029,7 +1041,7 @@ impl Architecture {
             #[cfg(feature = "arch_z80")]
             Z80(_) => Ok(Endianness::Little),
             #[cfg(feature = "scry")]
-            Scry => Ok(Endianness::Little),
+            Scry(_) => Ok(Endianness::Little),
         }
     }
 
@@ -1081,7 +1093,7 @@ impl Architecture {
             #[cfg(feature = "arch_z80")]
             Z80(_) => Ok(PointerWidth::U16),
             #[cfg(feature = "scry")]
-            Scry => Ok(PointerWidth::U32),
+            Scry(arch) => Ok(arch.width),
         }
     }
 
@@ -1138,7 +1150,7 @@ impl Architecture {
             #[cfg(feature = "arch_z80")]
             Z80(z80) => z80.into_str(),
             #[cfg(feature = "scry")]
-            Scry => Scry.into_str(),
+            Scry(arch) => arch.into_str(),
         }
     }
 }
@@ -1422,10 +1434,13 @@ impl FromStr for ScryArchitecture {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, ()> {
-        use ScryArchitecture::*;
-
         Ok(match s {
-            "scry" => Scry,
+            "scry32" => Self {
+                width: PointerWidth::U32,
+            },
+            "scry64" => Self {
+                width: PointerWidth::U64,
+            },
             _ => return Err(()),
         })
     }
@@ -1493,8 +1508,8 @@ impl FromStr for Architecture {
                     }
                     #[cfg(feature = "scry")]
                     {
-                        if let Ok(_n) = ScryArchitecture::from_str(s) {
-                            return Ok(Scry);
+                        if let Ok(arch) = ScryArchitecture::from_str(s) {
+                            return Ok(Scry(arch));
                         }
                     }
                     return Err(());
@@ -1798,7 +1813,7 @@ impl FromStr for BinaryFormat {
 mod tests {
     use super::*;
     use alloc::string::ToString;
-
+    
     #[test]
     fn roundtrip_known_triples() {
         // This list is constructed from:
@@ -2102,6 +2117,20 @@ mod tests {
         assert_eq!(
             t.architecture,
             Architecture::Riscv64(Riscv64Architecture::Riscv64),
+        );
+        assert_eq!(t.vendor, Vendor::Unknown);
+        assert_eq!(t.operating_system, OperatingSystem::Unknown);
+        assert_eq!(t.environment, Environment::Unknown);
+        assert_eq!(t.binary_format, BinaryFormat::Elf);
+    }
+    
+    #[cfg(feature = "scry")]
+	#[test]
+    fn scry_default_format_to_elf() {
+        let t = Triple::from_str("scry32").expect("can't parse target");
+        assert_eq!(
+            t.architecture,
+            Architecture::Scry(ScryArchitecture{width: PointerWidth::U32}),
         );
         assert_eq!(t.vendor, Vendor::Unknown);
         assert_eq!(t.operating_system, OperatingSystem::Unknown);
